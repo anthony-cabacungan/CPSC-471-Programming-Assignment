@@ -27,7 +27,7 @@ if __name__ == "__main__":
         sys.exit()
     
     serverMachine = sys.argv[1] 
-    serverPort = sys.argv[2]
+    serverPort = int(sys.argv[2])
 
     try:
         # DNS lookup to get IP address
@@ -45,7 +45,9 @@ if __name__ == "__main__":
             # ftp> put <filename> (uploads file <file name> to the server)
             # ftp> ls(lists files on theserver)
             # ftp> quit (disconnects from the server and exits)
+        print()
         print("Execute one of the following commands: ")
+        print()
         print("ftp get <file name>  : downloads file <file name> from the server")
         print("ftp put <file name>  : uploads file <file name> to the server")
         print("ftp ls <file name>   : lists files on the server")
@@ -65,5 +67,8 @@ if __name__ == "__main__":
                 elif arguments[1] == "quit":
                     ftp_quit(clientSocket)
                     break
+            else:
+                print("Not a valid command")
+                print()
     except:
         print("Cannot connect to server")
