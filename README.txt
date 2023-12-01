@@ -14,7 +14,7 @@ Then run the client with the same port number using:
 
 Client will then ask for the following commands:
 
-ftp get <file name>  : downloads file <file name> from the server
-ftp put <file name>  : uploads file <file name> to the server
-ftp ls <file name>   : lists files on the server
-ftp quit <file name> : disconnects from the server and exits
+ftp get <file name> : downloads file <file name> from the server
+ftp put <file name> : uploads file <file name> to the server
+ftp ls              : lists files on the server
+ftp quit            : disconnects from the server and exits
