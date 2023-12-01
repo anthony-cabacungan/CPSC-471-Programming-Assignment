@@ -4,18 +4,22 @@ import socket
 import sys
 
 # TODO: implement functions
-# def ftp_get(file_name):
-#     # downloads file <file name> from the server
+def ftp_get(file_name, control_socket, data_socket):
+    # downloads file <file name> from the server
+    pass
 
-# def ftp_put(file_name):
-#     # uploads file <file name> to the server
+def ftp_put(file_name, control_socket, data_socket):
+    # uploads file <file name> to the server
+    pass
 
-# def ftp_ls():
-#     # lists files on the server
+def ftp_ls(control_socket, data_socket):
+    # lists files on the server
+    pass
 
-def ftp_quit(client_socket):
+def ftp_quit(controlSocket, dataSocket):
     # disconnects from the server and exits
-    clientSocket.close()
+    controlSocket.close()
+    dataSocket.close()
     print("Disconnected from server")
     sys.exit()
 
@@ -32,12 +36,22 @@ if __name__ == "__main__":
     try:
         # DNS lookup to get IP address
         ip = socket.gethostbyname(serverMachine)
+        print("get ip")
 
-        # create socket 
-        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # create control channel socket
+            # Control channel lasts throughout the ftp
+            # session and is used to transfer all commands (ls, get, and put) from client to server 
+            # and all status/error messages from server to client.
+        controlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print("create control socket")
 
-        # connect to server
-        clientSocket.connect((ip, serverPort))
+        # create data channel socket 
+        dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print("create data socket")
+
+        # connect control
+        controlSocket.connect((ip, serverPort))
+        print("connect control socket")
 
         # Upon connecting to the server, the client prints out ftp>, which allows the user to execute
         # the following commands.
@@ -54,18 +68,25 @@ if __name__ == "__main__":
         print("ftp quit <file name> : disconnects from the server and exits")
         print()
 
+
+        # generate ephemeral port for data socket
         while True:
             userInput = input("Enter a command: ")
             arguments = userInput.split()
             if arguments[0] == "ftp":
                 if arguments[1] == "get":
-                    print("get")
+                    fileName = arguments[2]
+                    res = ftp_get(fileName, controlSocket, dataSocket)
+                    print(res)
                 elif arguments[1] == "put":
-                    print("put")
+                    fileName = arguments[2]
+                    res = ftp_put(fileName, controlSocket, dataSocket)
+                    print(res)
                 elif arguments[1] == "ls":
-                    print("put")
+                    res = ftp_ls(controlSocket, dataSocket)
+                    print(res)
                 elif arguments[1] == "quit":
-                    ftp_quit(clientSocket)
+                    ftp_quit(controlSocket, dataSocket)
                     break
             else:
                 print("Not a valid command")
