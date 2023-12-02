@@ -4,6 +4,7 @@ import socket
 import sys
 import os
 
+serverFolder = "serverFiles/"
 
 def send_data(sock, data):
     sock.sendall(data.encode())
@@ -17,14 +18,14 @@ def receive_data(sock):
 def ftp_get(sock, file_name):
     # downloads file <file name> from the server
     try:
-        with open(file_name, 'rb') as f:
+        with open(serverFolder + file_name, 'r') as f:
             content = f.read()
         
         dataSize = str(len(content))
-        while len(dataSize) < dataSize:
+        while len(dataSize) < int(dataSize):
             dataSize = "0" + dataSize
-        sock.send_data(dataSize)
-        sock.send_data(sock,content)
+        send_data(sock,dataSize)
+        send_data(sock,content)
     except FileNotFoundError:
         send_data(sock, "File not found")
 
