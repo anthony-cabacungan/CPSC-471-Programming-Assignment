@@ -19,8 +19,12 @@ def ftp_get(sock, file_name):
     try:
         with open(file_name, 'rb') as f:
             content = f.read()
-        send_data(sock, f"{len(content)}")
-        sock.sendall(content)
+        
+        dataSize = str(len(content))
+        while len(dataSize) < dataSize:
+            dataSize = "0" + dataSize
+        sock.send_data(dataSize)
+        sock.send_data(sock,content)
     except FileNotFoundError:
         send_data(sock, "File not found")
 
@@ -39,6 +43,22 @@ def ftp_ls(sock):
     files = ', '.join(os.listdir())
     send_data(sock, files)
 
+# creates a eohemral port for the client to connect to
+def create_ephemeral_Port(clientSock):
+    ephemeralPort = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ephemeralPort.settimeout(60)
+    ephemeralPort.bind(('',0))
+    ephemeralPort.listen(1)
+    try:
+        portNumber = ephemeralPort.getsockname()[1]
+        print("ephermeral port is : " + str(portNumber))
+        clientSock.sendall(str(portNumber).encode())
+
+        ephemeralPort, addr = ephemeralPort.accept()    
+        print("ephermeral port accepted connection from", addr)
+    except:
+        print("fail")
+    return(ephemeralPort)
 
 # TODO: input validation / error handling wherever needed
 def main():
@@ -68,11 +88,14 @@ def main():
                     break
                 action, _, file_name = command.partition(' ')
                 if action == 'GET':
-                    ftp_get(clientSock, file_name)
+                    data_socket = create_ephemeral_Port(clientSock)
+                    ftp_get(data_socket, file_name)
                 elif action == 'PUT':
                     ftp_put(clientSock, file_name)
                 elif action == 'LS':
-                    ftp_ls(clientSock)
+                    data_socket = create_ephemeral_Port(clientSock)
+                    ftp_ls(data_socket)
+                    data_socket.close()
                 elif action == 'QUIT':
                     break
         except Exception as e:

@@ -9,14 +9,17 @@ clientFolder = "clientFiles/"
 
 
 # TODO: implement functions
-def ftp_get(file_name, control_socket, data_socket):
+def ftp_get(file_name, control_socket, serverMachine):
     # Sending command to the server
     send_data(control_socket, f"GET {file_name}")
     print(f"Requested file: {file_name}")
-
+    
+    # opens a ephemeral port to the server
+    data_socket = data_connection(control_socket, serverMachine)
     # Receive file size from the server
     # receive the first 10 bits...the first 10 bits are the file size
     file_size_data = receive_data(data_socket,10)
+    print(file_size_data)
 
     try:
         file_size = int(file_size_data)
@@ -28,11 +31,12 @@ def ftp_get(file_name, control_socket, data_socket):
     if file_size > 0:
         # Download file <file name> from the server
         content = data_socket.recv(file_size)
-        with open(file_name, 'wb') as f:
+        with open("clientFiles/"+file_name, 'wb') as f:
             f.write(content)
         print(f"Downloaded {file_name}")
     else:
         print("File not found or empty")
+    data_socket.close()
 
 
 
@@ -58,12 +62,14 @@ def ftp_put(file_name, control_socket, data_socket):
         print("File not found")
 
 
-def ftp_ls(control_socket, data_socket):
+def ftp_ls(control_socket,server):
     # send command to server
     send_data(control_socket, "LS")
 
+    ephemeral_port = data_connection(control_socket, server)
     # lists files on the server
-    print(receive_data(data_socket))
+    print(receive_data(ephemeral_port,1024))
+    ephemeral_port.close()
 
 
 def ftp_quit(sock):
@@ -81,18 +87,21 @@ def send_data(sock, data):
 
 def receive_data(sock,size):
     data = sock.recv(size).decode()
-    if data == "":
-        print("Received empty data")
+    if len(data) != size:
+        print("Missing data")
     return data
 
 # create ephemeral port to the server
-def create_ephemeral_Port(serverMachine, sock):
-    sock.bind(('',0))
-    sock.listen(1)
-    portNumber = sock.getsockname()[1]
-    print("ephermeral port is : " + portNumber)
-    ephemeralPort = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ephemeralPort.connect((serverMachine, portNumber))
+def data_connection(sock, serverMachine):
+    portNumber = sock.recv(5).decode()
+
+    print(f"Attempting to connect data port at {portNumber}")
+    try:
+        ephemeralPort = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ephemeralPort.connect((serverMachine, int(portNumber)))
+    except:
+        print("fail")
+    print("connected")
     return(ephemeralPort)
 
 
@@ -170,17 +179,11 @@ def main():
             # when an ftp command is run a ephemeral port is open than closed when trasfer is over
             if cmd_parts[0] == "ftp":
                 if cmd_action == "get" and file_name:
-                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
-                    ftp_get(file_name, controlSocket, dataSocket)
-                    dataSocket.close()
+                    ftp_get(file_name, controlSocket, serverMachine)
                 elif cmd_action == "put" and file_name:
-                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
-                    ftp_put(file_name, controlSocket, dataSocket)
-                    dataSocket.close()
+                    ftp_put(file_name, controlSocket, serverMachine)
                 elif cmd_action == "ls":
-                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
-                    ftp_ls(controlSocket)
-                    dataSocket.close()
+                    ftp_ls(controlSocket, serverMachine)
                 elif cmd_action == "quit":
                     send_data(controlSocket, "QUIT")
                     break
@@ -190,7 +193,6 @@ def main():
                 print("Invalid command")
     finally:
         controlSocket.close()
-        dataSocket.close()
 
 
 if __name__ == "__main__":
