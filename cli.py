@@ -15,8 +15,8 @@ def ftp_get(file_name, control_socket, data_socket):
     print(f"Requested file: {file_name}")
 
     # Receive file size from the server
-    file_size_data = receive_data(data_socket)
-    print(f"Received file size data: {file_size_data}")
+    # receive the first 10 bits...the first 10 bits are the file size
+    file_size_data = receive_data(data_socket,10)
 
     try:
         file_size = int(file_size_data)
@@ -45,19 +45,25 @@ def ftp_put(file_name, control_socket, data_socket):
             content = f.read()
         # send data
         send_data(control_socket, f"PUT {file_name}")
-        send_data(data_socket, f"{len(content)}")
+        # Makes sure the dataSize is 10 bits
+        dataSizeStr = str(len(content))
+        while len(dataSizeStr) < 10:
+            dataSizeStr = "0" + dataSizeStr
+        fileData = dataSizeStr + content
+        send_data(data_socket, dataSizeStr)
         # uploads file <file name> to the server
-        data_socket.sendall(content)
+        data_socket.sendall(fileData.encode())
         print(receive_data(data_socket))
     except FileNotFoundError:
         print("File not found")
 
 
-def ftp_ls(sock):
+def ftp_ls(control_socket, data_socket):
     # send command to server
-    send_data(sock, "LS")
+    send_data(control_socket, "LS")
+
     # lists files on the server
-    print(receive_data(sock))
+    print(receive_data(data_socket))
 
 
 def ftp_quit(sock):
@@ -73,11 +79,21 @@ def send_data(sock, data):
     sock.sendall(data.encode())
 
 
-def receive_data(sock):
-    data = sock.recv(1024).decode()
+def receive_data(sock,size):
+    data = sock.recv(size).decode()
     if data == "":
         print("Received empty data")
     return data
+
+# create ephemeral port to the server
+def create_ephemeral_Port(serverMachine, sock):
+    sock.bind(('',0))
+    sock.listen(1)
+    portNumber = sock.getsockname()[1]
+    print("ephermeral port is : " + portNumber)
+    ephemeralPort = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ephemeralPort.connect((serverMachine, portNumber))
+    return(ephemeralPort)
 
 
 # TODO: input validation / error handling wherever needed
@@ -98,15 +114,15 @@ def main():
         print("create control socket")
 
         # create data channel socket
-        dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print("create data socket")
+        # dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #created the data socket to early..should be created for each ftp command
+        # print("create data socket")                                      
 
         # DNS lookup to get IP address
         ip = socket.gethostbyname(serverMachine)
         print("get ip", ip)
 
         controlSocket.connect((serverMachine, serverPort))
-        dataSocket.connect((serverMachine, serverPort))
+         # dataSocket.connect((serverMachine, serverPort))
         print("Connected to server.")
 
         # create control channel socket
@@ -150,13 +166,21 @@ def main():
             cmd_action = cmd_parts[1]  # The action (get, put, ls, quit)
             file_name = cmd_parts[2] if len(cmd_parts) > 2 else None  # The file name if present
 
+
+            # when an ftp command is run a ephemeral port is open than closed when trasfer is over
             if cmd_parts[0] == "ftp":
                 if cmd_action == "get" and file_name:
+                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
                     ftp_get(file_name, controlSocket, dataSocket)
+                    dataSocket.close()
                 elif cmd_action == "put" and file_name:
+                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
                     ftp_put(file_name, controlSocket, dataSocket)
+                    dataSocket.close()
                 elif cmd_action == "ls":
+                    dataSocket = create_ephemeral_Port(serverMachine, controlSocket)
                     ftp_ls(controlSocket)
+                    dataSocket.close()
                 elif cmd_action == "quit":
                     send_data(controlSocket, "QUIT")
                     break
