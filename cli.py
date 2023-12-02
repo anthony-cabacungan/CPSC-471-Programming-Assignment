@@ -2,124 +2,64 @@
 
 import socket
 import sys
+import os
 
 headerSize = 10
 clientFolder = "clientFiles/"
 
+
 # TODO: implement functions
-def ftp_get(file_name, control_socket, data_socket):
-    # downloads file <file name> from the server
-
-    # create ephemeral port for the data socket
-    dataPort = ephemeral_Port(data_socket)
-   
+def ftp_get(sock, file_name):
     # sending command to the server
-    command = "get"
-    send_data(control_socket,command)
-
-    # send requested file name 
-    send_data(control_socket, file_name)
-    
-    # receive size of data from server
-    dataSize = int(receive_data(dataPort, headerSize))
-
+    send_data(sock, f"GET {file_name}")
     # reveive data from the server
-    data = receive_data(dataPort, dataSize)
-    
-    # Create file with received data
-    fileData = open(clientFolder + file_name, "x")
-    fileData.write(data)
-    print("The number of bytes that got transferred: " + str(dataSize))
-    dataPort.close()
-    return 0
+    file_size = int(receive_data(sock))
+    if file_size > 0:
+        # downloads file <file name> from the server
+        content = sock.recv(file_size)
+        with open(file_name, 'wb') as f:
+            f.write(content)
+        print(f"Downloaded {file_name}")
+    else:
+        print("File not found")
 
-def ftp_put(file_name, control_socket, data_socket):
-    # uploads file <file name> to the server
-    command = "put"
-    send_data(control_socket, command)
+
+def ftp_put(sock, file_name):
     try:
-        sendFile = open(clientFolder + file_name, "r")
-        file = sendFile.read()
-        fileSize = len(file)
-    except Exception as e:
-        print(e)
-        return
-    # create ephemeral port for the data socket
-    dataPort = ephemeral_Port(data_socket)
-    
-    # adjusted data to fit fixed header size
-    fileNameSize = len(file_name)
-    fileSize = str(dataSize)
-    while len(dataSize) < 10:
-        dataSize = "0" + dataSize
+        with open(file_name, 'rb') as f:
+            content = f.read()
+        # send data
+        send_data(sock, f"PUT {file_name}")
+        send_data(sock, f"{len(content)}")
+        # uploads file <file name> to the server
+        sock.sendall(content)
+        print(receive_data(sock))
+    except FileNotFoundError:
+        print("File not found")
 
-    while len(file_name) < 10:
-        file_name = "0" + file_name
-    
-    # add headers to data
-    data = fileName + fileSize + file
-    
-    #send data
-    send_data(dataPort,data)
-    print(file_name + " upload successful.")
-    print("Bytes sent: " + str(len(data)))
 
-    sendFile.close()
-    dataPort.close()
-
-def ftp_ls(control_socket, data_socket):
-    # lists files on the server
+def ftp_ls(sock):
     # send command to server
-    command = "ls"
-    send_data(control_socket, command)
-    
-    # create ephemeral port for the data socket
-    dataPort = ephemeral_Port(data_socket)
+    send_data(sock, "LS")
+    # lists files on the server
+    print(receive_data(sock))
 
-    #receive size of data from server
-    dataSize = int(receive_data(dataPort, headerSize))
 
-    #receive list of files
-    response = receive_data(dataPort, dataSize)
-
-    print(response)
-    dataPort.close()
-
-def ftp_quit(controlSocket, dataSocket):
+def ftp_quit(sock):
     # disconnects from the server and exits
-    controlSocket.close()
-    dataSocket.close()
+    send_data(sock, "QUIT")
+    sock.close()
     print("Disconnected from server")
     sys.exit()
 
+
 # Helper functions
-# Send data until all bytes sent
-def send_data(socket, data):
-    data = data.encode("utf-8")
-    sentBytes = 0
-    while len(data) > sentBytes:
-        sentBytes += socket.send(data[sentBytes:])
+def send_data(sock, data):
+    sock.sendall(data.encode())
 
-# create ephemeral port for the data socket
-def ephemeral_Port(data_socket):
-    data_socket.bind(('',0))
-    data_socket.listen(1)
-    dataPort = data_socket.getsockname()[1]
-    return(dataPort)
+def receive_data(sock):
+    return sock.recv(1024).decode()
 
-# keep receiving data until all bytes are received
-def receive_data(dataPort, dataSize):
-    data = ""
-    while True:
-        data = dataPort.recv(dataSize).decode("utf-8")
-        if len(data) == dataSize:
-            print("File received")
-            break
-        # The other side has closed the socket
-        if not data:
-            print("Failed to receive data")
-            break
-    return data
 
 if __name__ == "__main__":
     # TODO: input validation / error handling wherever needed
@@ -127,36 +67,39 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python cli.py <server machine> <server port>")
         sys.exit()
-    
-    serverMachine = sys.argv[1] 
-    serverPort = int(sys.argv[2])
 
+    serverMachine = sys.argv[1]
+    serverPort = int(sys.argv[2])
     try:
+        controlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        controlSocket.connect((serverMachine, serverPort))
+        print("Connected to server.")
+
         # DNS lookup to get IP address
-        ip = socket.gethostbyname(serverMachine)
-        print("get ip")
+        #ip = socket.gethostbyname(serverMachine)
+        #print("get ip")
 
         # create control channel socket
-            # Control channel lasts throughout the ftp
-            # session and is used to transfer all commands (ls, get, and put) from client to server 
-            # and all status/error messages from server to client.
-        controlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print("create control socket")
+        # Control channel lasts throughout the ftp
+        # session and is used to transfer all commands (ls, get, and put) from client to server
+        # and all status/error messages from server to client.
+        #controlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #print("create control socket")
 
         # create data channel socket 
-        dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print("create data socket")
+        #dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #print("create data socket")
 
         # connect control
-        controlSocket.connect((ip, serverPort))
-        print("connect control socket")
+        #controlSocket.connect((ip, serverPort))
+        #print("connect control socket")
 
         # Upon connecting to the server, the client prints out ftp>, which allows the user to execute
         # the following commands.
-            # ftp> get <file name> (downloads file <file name> from the server)
-            # ftp> put <filename> (uploads file <file name> to the server)
-            # ftp> ls(lists files on theserver)
-            # ftp> quit (disconnects from the server and exits)
+        # ftp> get <file name> (downloads file <file name> from the server)
+        # ftp> put <filename> (uploads file <file name> to the server)
+        # ftp> ls(lists files on theserver)
+        # ftp> quit (disconnects from the server and exits)
         print()
         print("Execute one of the following commands: ")
         print()
@@ -166,28 +109,21 @@ if __name__ == "__main__":
         print("ftp quit <file name> : disconnects from the server and exits")
         print()
 
-
         # generate ephemeral port for data socket
         while True:
-            userInput = input("Enter a command: ")
-            arguments = userInput.split()
-            if arguments[0] == "ftp":
-                if arguments[1] == "get":
-                    fileName = arguments[2]
-                    res = ftp_get(fileName, controlSocket, dataSocket)
-                    print(res)
-                elif arguments[1] == "put":
-                    fileName = arguments[2]
-                    res = ftp_put(fileName, controlSocket, dataSocket)
-                    print(res)
-                elif arguments[1] == "ls":
-                    res = ftp_ls(controlSocket, dataSocket)
-                    print(res)
-                elif arguments[1] == "quit":
-                    ftp_quit(controlSocket, dataSocket)
-                    break
+            command = input("Enter a command: ")
+            if command.startswith("ftp get"):
+                _, _, file_name = command.partition(' ')
+                ftp_get(controlSocket, file_name)
+            elif command.startswith("ftp put"):
+                _, _, file_name = command.partition(' ')
+                ftp_put(controlSocket, file_name)
+            elif command == "ftp ls":
+                ftp_ls(controlSocket)
+            elif command == "ftp quit":
+                send_data(controlSocket, "QUIT")
+                break
             else:
-                print("Not a valid command")
-                print()
-    except:
-        print("Cannot connect to server")
+                print("Invalid command")
+    finally:
+        controlSocket.close()
