@@ -22,7 +22,7 @@ def ftp_get(sock, file_name):
             content = f.read()
         
         dataSize = str(len(content))
-        while len(dataSize) < int(dataSize):
+        while len(dataSize) < 10:
             dataSize = "0" + dataSize
         send_data(sock,dataSize)
         send_data(sock,content)
