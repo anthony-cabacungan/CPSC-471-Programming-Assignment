@@ -4,6 +4,7 @@ import socket
 import sys
 import os
 
+headerSize = 10
 serverFolder = "serverFiles/"
 
 def send_data(sock, data):
@@ -22,7 +23,7 @@ def ftp_get(sock, file_name):
             content = f.read()
         
         dataSize = str(len(content))
-        while len(dataSize) < 10:
+        while len(dataSize) < headerSize:
             dataSize = "0" + dataSize
         send_data(sock,dataSize)
         send_data(sock,content)
@@ -32,7 +33,7 @@ def ftp_get(sock, file_name):
 
 def ftp_put(sock, file_name):
     # uploads file <file name> to the server
-    file_size_data = sock.recv(10).decode()
+    file_size_data = sock.recv(headerSize).decode()
     print(file_size_data)
 
     try:
@@ -57,7 +58,7 @@ def ftp_ls(sock):
     # lists files on the server
     files = ', '.join(os.listdir(serverFolder))
     files_size = str(len(files))
-    while len(files_size) < 10:
+    while len(files_size) < headerSize:
         files_size = "0" + files_size
     
     send_data(sock, files_size)

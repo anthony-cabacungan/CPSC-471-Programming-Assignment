@@ -2,7 +2,6 @@
 
 import socket
 import sys
-import os
 
 headerSize = 10
 clientFolder = "clientFiles/"
@@ -18,7 +17,7 @@ def ftp_get(file_name, control_socket, serverMachine):
     data_socket = data_connection(control_socket, serverMachine)
     # Receive file size from the server
     # receive the first 10 bits...the first 10 bits are the file size
-    file_size_data = receive_data(data_socket,10)
+    file_size_data = receive_data(data_socket, headerSize)
     print(file_size_data)
 
     try:
@@ -51,7 +50,7 @@ def ftp_put(file_name, control_socket, serverMachine):
             content = f.read()
         
         dataSize = str(len(content))
-        while len(dataSize) < 10:
+        while len(dataSize) < headerSize:
             dataSize = "0" + dataSize
         send_data(data_socket,dataSize)
         send_data(data_socket,content)
@@ -66,7 +65,7 @@ def ftp_ls(control_socket,server):
     
     ephemeral_port = data_connection(control_socket, server)
     # lists files on the server
-    files_size = int(receive_data(ephemeral_port, 10))
+    files_size = int(receive_data(ephemeral_port, headerSize))
     files = receive_data(ephemeral_port, files_size)
     print(files)
     ephemeral_port.close()
