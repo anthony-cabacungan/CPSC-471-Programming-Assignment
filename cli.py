@@ -63,10 +63,12 @@ def ftp_put(file_name, control_socket, serverMachine):
 def ftp_ls(control_socket,server):
     # send command to server
     send_data(control_socket, "LS")
-
+    
     ephemeral_port = data_connection(control_socket, server)
     # lists files on the server
-    print(receive_data(ephemeral_port,1024))
+    files_size = int(receive_data(ephemeral_port, 10))
+    files = receive_data(ephemeral_port, files_size)
+    print(files)
     ephemeral_port.close()
 
 

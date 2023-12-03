@@ -56,6 +56,11 @@ def ftp_put(sock, file_name):
 def ftp_ls(sock):
     # lists files on the server
     files = ', '.join(os.listdir(serverFolder))
+    files_size = str(len(files))
+    while len(files_size) < 10:
+        files_size = "0" + files_size
+    
+    send_data(sock, files_size)
     send_data(sock, files)
 
 # creates a eohemral port for the client to connect to
