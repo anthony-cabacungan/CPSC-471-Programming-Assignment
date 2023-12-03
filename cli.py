@@ -31,7 +31,7 @@ def ftp_get(file_name, control_socket, serverMachine):
     if file_size > 0:
         # Download file <file name> from the server
         content = data_socket.recv(file_size)
-        with open("clientFiles/"+file_name, 'wb') as f:
+        with open(clientFolder + file_name, 'wb') as f:
             f.write(content)
         print(f"Downloaded {file_name}")
     else:
@@ -40,26 +40,24 @@ def ftp_get(file_name, control_socket, serverMachine):
 
 
 
-def ftp_put(file_name, control_socket, data_socket):
+def ftp_put(file_name, control_socket, serverMachine):
+    send_data(control_socket, f"PUT {file_name}")
     file_path = clientFolder + file_name  # Include the client folder in the path
     print(f"Attempting to upload file from path: {file_path}")  # Debugging info
-
+    # opens a ephemeral port to the server
+    data_socket = data_connection(control_socket, serverMachine)
     try:
-        with open(file_name, 'rb') as f:
+        with open(clientFolder + file_name, 'r') as f:
             content = f.read()
-        # send data
-        send_data(control_socket, f"PUT {file_name}")
-        # Makes sure the dataSize is 10 bits
-        dataSizeStr = str(len(content))
-        while len(dataSizeStr) < 10:
-            dataSizeStr = "0" + dataSizeStr
-        fileData = dataSizeStr + content
-        send_data(data_socket, dataSizeStr)
-        # uploads file <file name> to the server
-        data_socket.sendall(fileData.encode())
-        print(receive_data(data_socket))
+        
+        dataSize = str(len(content))
+        while len(dataSize) < 10:
+            dataSize = "0" + dataSize
+        send_data(data_socket,dataSize)
+        send_data(data_socket,content)
     except FileNotFoundError:
-        print("File not found")
+        print("file not found")
+    data_socket.close()
 
 
 def ftp_ls(control_socket,server):

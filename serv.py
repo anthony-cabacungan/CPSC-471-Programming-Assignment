@@ -32,16 +32,30 @@ def ftp_get(sock, file_name):
 
 def ftp_put(sock, file_name):
     # uploads file <file name> to the server
-    file_size = receive_data(sock)
-    content = sock.recv(file_size)
-    with open(file_name, 'wb') as f:
-        f.write(content)
-    send_data(sock, "File received")
+    file_size_data = sock.recv(10).decode()
+    print(file_size_data)
+
+    try:
+        file_size = int(file_size_data)
+        print(f"File size: {file_size}")
+    except ValueError:
+        print(f"Received invalid file size: {file_size_data}")
+        return
+
+    if file_size > 0:
+        # Download file <file name> from the server
+        content = sock.recv(file_size)
+        with open(serverFolder+file_name, 'wb') as f:
+            f.write(content)
+        print(f"Downloaded {file_name}")
+    else:
+        print("File not found or empty")
+
 
 
 def ftp_ls(sock):
     # lists files on the server
-    files = ', '.join(os.listdir())
+    files = ', '.join(os.listdir(serverFolder))
     send_data(sock, files)
 
 # creates a eohemral port for the client to connect to
@@ -92,7 +106,9 @@ def main():
                     data_socket = create_ephemeral_Port(clientSock)
                     ftp_get(data_socket, file_name)
                 elif action == 'PUT':
-                    ftp_put(clientSock, file_name)
+                    data_socket = create_ephemeral_Port(clientSock)
+                    ftp_put(data_socket, file_name)
+                    data_socket.close()
                 elif action == 'LS':
                     data_socket = create_ephemeral_Port(clientSock)
                     ftp_ls(data_socket)
