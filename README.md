@@ -9,7 +9,7 @@ the server, upload files to the server, list files on the server, and disconnect
 ## The Team
 
 - Anthony Cabacungan, antcabacungan@csu.fullerton.edu
-- anny Nguyen, dnguyen1535@csu.fullerton.edu
+- Danny Nguyen, dnguyen1535@csu.fullerton.edu
 - Zhihuang Chen, zhchen@csu.fullerton.edu
 
 ## Instructions
